@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: semantic-layer-demo
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        - name: semantic-layer-demo
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: semantic-layer-demo
+  labels:
+    app: semantic-layer-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: semantic-layer-demo
+  template:
+    metadata:
+      labels:
+        app: semantic-layer-demo
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: git-clone
+          image: alpine/git:latest
+          args:
+            - clone
+            - --depth=1
+            - https://github.com/maartenor/semantic-layer-business-layer.git
+            - /repo
+          volumeMounts:
+            - name: repo
+              mountPath: /repo
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+        - name: pip-install
+          image: python:3.12-slim
+          command:
+            - sh
+            - -c
+            - pip install --no-cache-dir --target=/pip-packages -r /repo/data_governance/server/requirements.txt gunicorn
+          volumeMounts:
+            - name: repo
+              mountPath: /repo
+              readOnly: true
+            - name: pip-packages
+              mountPath: /pip-packages
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      containers:
+        - name: semantic-layer-demo
+          image: python:3.12-slim
+          command:
+            - sh
+            - -c
+            - exec python -m gunicorn --bind 0.0.0.0:35000 --workers 2 --timeout 120 --chdir /repo/data_governance/server app:app
+          env:
+            - name: PYTHONPATH
+              value: /pip-packages
+          ports:
+            - containerPort: 35000
+              protocol: TCP
+          # Post-start hook to send reload signal to fix 0 assets loaded from csv
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - python
+                  - -c
+                  - |
+                    import time, urllib.request
+                    for _ in range(30):
+                        try:
+                            urllib.request.urlopen("http://localhost:35000/health")
+                            break
+                        except Exception:
+                            time.sleep(1)
+                    urllib.request.urlopen(urllib.request.Request("http://localhost:35000/reload", method="POST"))
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 35000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 35000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: repo
+              mountPath: /repo
+              readOnly: true
+            - name: pip-packages
+              mountPath: /pip-packages
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: repo
+          emptyDir: {}
+        - name: pip-packages
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: semlaydemo-dev
+
+resources:
+  - namespace.yaml
+  - middleware.yaml
+  - ../../base
+
+patches:
+  - path: ingressroute-patch.yaml

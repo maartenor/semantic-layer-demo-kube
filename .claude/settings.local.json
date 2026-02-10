@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__kubernetes-mcp-server__namespaces_list",
+      "mcp__kubernetes-mcp-server__resources_list",
+      "mcp__kubernetes-mcp-server__resources_get",
+      "Bash(kustomize build:*)",
+      "Bash(kubectl kustomize:*)",
+      "Bash(kubectl get:*)",
+      "WebFetch(domain:demo.maartenor.org)"
+    ]
+  }
+}
