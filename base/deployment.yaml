@@ -24,11 +24,15 @@ spec:
       initContainers:
         - name: git-clone
           image: alpine/git:latest
+          command:
+            - /bin/sh
+            - '-c'
           args:
-            - clone
-            - --depth=1
-            - https://github.com/maartenor/semantic-layer-business-layer.git
-            - /repo
+            - |
+              rm -rf /repo/* /repo/.[!.]* /repo/..?* 2>/dev/null || true
+              git clone --depth=1 \
+                https://github.com/maartenor/semantic-layer-business-layer.git \
+                /repo
           volumeMounts:
             - name: repo
               mountPath: /repo
